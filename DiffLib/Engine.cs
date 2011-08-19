@@ -4,11 +4,17 @@ using System.Linq;
 using System.Text;
 using System.Reflection;
 using System.IO;
+using Mono.Cecil;
 
 namespace DiffLib
 {
   
-    //http://blog.lavablast.com/post/2010/05/05/Lambda-IEqualityComparer3cT3e.aspx
+    /// <summary>
+    /// Class taken from 
+    /// http://blog.lavablast.com/post/2010/05/05/Lambda-IEqualityComparer3cT3e.aspx
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+
     public class KeyEqualityComparer<T> : IEqualityComparer<T>
     {
         private readonly Func<T, T, bool> comparer;
@@ -71,6 +77,7 @@ namespace DiffLib
    
     public class Engine
     {
+        #region  System.Reflection.Assembly handling
         /// <summary>
         /// Compares two assemblies by their method bytecodes. If there's change in method,  it well be part of result
         /// </summary>
@@ -140,6 +147,8 @@ namespace DiffLib
             }
             return res;
         }
+
+        
         /// <summary>
         /// makes assembly comparison all to all for two folders
         /// </summary>
@@ -153,6 +162,8 @@ namespace DiffLib
                         select GetAssemblyDiff(asm1, asm2);
             return diffs;
         }
+
+        
         /// <summary>
         /// just loads assemblies from specified path
         /// </summary>
@@ -170,6 +181,110 @@ namespace DiffLib
                     yield return asm;
             }
         }
+        #endregion
+
+        # region Cecil Assemlby handling
+
+        public static IEnumerable<DiffRecord> CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
+        {
+            var firstData = from module in firstAssembly.Modules
+                            from type in module.GetTypes()
+                            from method in type.Methods
+                            let parameters = method.Parameters
+                            let returnType = method.ReturnType
+
+                            // for some system methods body can be null, so we should check it
+                            where method.HasBody
+                            let instructions = method.Body.Instructions
+
+                            let code = string.Join(",", instructions)
+                            let bytes = code
+                            select new { type, method, parameters, returnType, bytes };
+
+            var secondData = from module in secondAssembly.Modules
+                             from type in module.GetTypes()
+                             from method in type.Methods
+                             let parameters = method.Parameters
+                             let returnType = method.ReturnType
+
+                             // for some system methods body can be null, so we should check it
+                             where method.HasBody
+                             let instructions = method.Body.Instructions
+
+                             let code = string.Join(",", instructions)
+                             let bytes = code
+                             select new { type, method, parameters, returnType, bytes };
+
+            var changedMethods = from firstMethod in firstData
+                                 from secondMethod in secondData
+                                 where
+                                     // type names are the same
+                                 firstMethod.type.FullName.Equals(secondMethod.type.FullName)
+                                     // method names are the same
+                                  && firstMethod.method.Name == secondMethod.method.Name
+                                     // return typse are the same
+                                  && firstMethod.returnType.FullName == secondMethod.returnType.FullName
+                                     // parameters are the same
+                                  && firstMethod.parameters.Except(secondMethod.parameters, x => x.ParameterType.FullName).Count() == 0
+                                     //!!! dirty hack, byte arrays compared by their string representations
+                                     // bodies ARE NOT the same
+                                 && !firstMethod.bytes.Equals(secondMethod.bytes)
+
+                                 select new { firstMethod = firstMethod, secondMethod = secondMethod };
+            // just collection results
+            var res = new List<DiffRecord>();
+            foreach (var diff in changedMethods)
+            {
+                var first = diff.firstMethod;
+                var paramNames = from parameter in first.parameters select parameter.Name + ":" + parameter.ParameterType.Name;
+
+                var methodName = first.method.ReturnType.Name + " " +
+                            first.type.Name + "." +
+                            first.method.Name + "(" + string.Join(",", paramNames) + ")";
+
+                res.Add(new DiffRecord()
+                {
+                    MethodName = methodName,
+                    FirstBytes = diff.firstMethod.bytes,
+                    SecondBytes = diff.secondMethod.bytes,
+                    Asm1 = firstAssembly.Name.FullName,
+                    Asm1File = firstAssembly.MainModule.Name,
+                    Asm2 = firstAssembly.Name.FullName,
+                    Asm2File = firstAssembly.MainModule.Name,
+                });
+
+            }
+            return res;
+
+        }
+        public static IEnumerable<IEnumerable<DiffRecord>> CecilGetDirectoryDiff(string firstFolder, string secondFolder)
+        {
+            var firstAssembiles = CecilLoadAssemblies(firstFolder);
+            var secondAssemblies = CecilLoadAssemblies(secondFolder);
+            var diffs = from asm1 in firstAssembiles
+                        from asm2 in secondAssemblies
+                        select CecilAssebmlyDiff(asm1, asm2);
+            return diffs;
+        }
+        /// <summary>
+        /// just loads assemblies from specified path
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        private static IEnumerable<AssemblyDefinition> CecilLoadAssemblies(string path)
+        {
+            var directory = new DirectoryInfo(path);
+            var files = directory.GetFiles("*.dll");
+
+            foreach (var file in files)
+            {
+                var asm = AssemblyDefinition.ReadAssembly(file.FullName);
+                if (asm != null)
+                    yield return asm;
+            }
+        }
+
+        #endregion
 
     }
 }

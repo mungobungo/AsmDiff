@@ -12,16 +12,17 @@ namespace AsmDiff
     {
         static void Main(string[] args)
         {
-            if (args.Length != 2)
-            {
-                Console.WriteLine("Usage : asmdiff folder1 folder2");
-                return;
-            }
+            //if (args.Length != 2)
+            //{
+            //    Console.WriteLine("Usage : asmdiff folder1 folder2");
+            //    return;
+            //}
 
-            var folder1 = args[0];
-            var folder2 = args[1];
+            //var folder1 = args[0];
+            //var folder2 = args[1];
 
-            var folderDiff = Engine.GetDirectoryDiff(folder1, folder2);
+           // var folderDiff = Engine.GetDirectoryDiff(folder1, folder2);
+            var folderDiff = Engine.CecilGetDirectoryDiff(@"C:\Users\oleg\AsmDiff\examples\first", @"C:\Users\oleg\AsmDiff\examples\second");
             
             //var diff = Engine.GetAssemblyDiff(Assembly.GetAssembly(typeof(Test)), Assembly.GetAssembly(typeof(Engine)));
             foreach (var diff in folderDiff)
