@@ -24,7 +24,7 @@ namespace AsmDiff
            // var folderDiff = Engine.GetDirectoryDiff(folder1, folder2);
             var folderDiff = Engine.CecilGetDirectoryDiff(folder1, folder2);
             
-            
+            //var diff = Engine.GetAssemblyDiff(Assembly.GetAssembly(typeof(Test)), Assembly.GetAssembly(typeof(Engine)));
             foreach (var diff in folderDiff)
             {
                 foreach (var d in diff)
@@ -44,7 +44,7 @@ namespace AsmDiff
             }
             if (folderDiff.Sum(x => x.Count()) == 0)
                 Console.WriteLine("No diffs found");
-          //  Console.ReadLine();
+            //Console.ReadLine();
         }
         
     }

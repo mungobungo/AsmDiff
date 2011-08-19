@@ -5,10 +5,12 @@ using System.Text;
 using System.Reflection;
 using System.IO;
 using Mono.Cecil;
+using Cecil.Decompiler.Languages;
+
 
 namespace DiffLib
 {
-  
+
     /// <summary>
     /// Class taken from 
     /// http://blog.lavablast.com/post/2010/05/05/Lambda-IEqualityComparer3cT3e.aspx
@@ -73,8 +75,26 @@ namespace DiffLib
         {
             return first.Except(second, new KeyEqualityComparer<T>(keyExtractor));
         }
+        
+        /// <summary>
+        /// taken from
+        /// http://naveensrinivasan.com/2010/06/08/using-mono-cecil-decompiler-within-windbg-to-decompile/
+        /// </summary>
+        /// <param name="methodName"></param>
+        /// <returns></returns>
+        public static string SourceCode(this MethodDefinition methodName)
+        {
+
+            var writer = new StringWriter();
+
+            CSharp.GetLanguage(CSharpVersion.V3).GetWriter(new PlainTextFormatter(writer)).Write(methodName);
+
+            return writer.ToString();
+
+        }
+
     }
-   
+
     public class Engine
     {
         #region  System.Reflection.Assembly handling
@@ -82,7 +102,7 @@ namespace DiffLib
         /// Compares two assemblies by their method bytecodes. If there's change in method,  it well be part of result
         /// </summary>
         /// <returns>list of differences of methods</returns>
-        public static  IEnumerable<DiffRecord> GetAssemblyDiff(Assembly firstAssembly, Assembly secondAssemlby)
+        public static IEnumerable<DiffRecord> GetAssemblyDiff(Assembly firstAssembly, Assembly secondAssemlby)
         {
             var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy | BindingFlags.Default | BindingFlags.DeclaredOnly | BindingFlags.CreateInstance | BindingFlags.Instance;
             var firstData = from type in firstAssembly.GetTypes()
@@ -91,7 +111,7 @@ namespace DiffLib
                             let returnType = method.ReturnType
                             let body = method.GetMethodBody()
                             // for some system methods body can be null, so we should check it
-                            where body != null 
+                            where body != null
                             let bytes = BitConverter.ToString(body.GetILAsByteArray())
                             select new { type, method, parameters, returnType, bytes };
 
@@ -101,26 +121,26 @@ namespace DiffLib
                              let returnType = method.ReturnType
                              let body = method.GetMethodBody()
                              // for some system methods body can be null, so we should check it
-                             where body != null 
+                             where body != null
                              let bytes = BitConverter.ToString(body.GetILAsByteArray())
                              select new { type, method, parameters, returnType, bytes };
 
             var changedMethods = from firstMethod in firstData
-                                  from secondMethod in secondData
-                                  where
+                                 from secondMethod in secondData
+                                 where
                                      // type names are the same
-                                  firstMethod.type.FullName.Equals(secondMethod.type.FullName)
+                                 firstMethod.type.FullName.Equals(secondMethod.type.FullName)
                                      // method names are the same
-                                   && firstMethod.method.Name == secondMethod.method.Name
+                                  && firstMethod.method.Name == secondMethod.method.Name
                                      // return typse are the same
-                                   && firstMethod.returnType == secondMethod.returnType
+                                  && firstMethod.returnType == secondMethod.returnType
                                      // parameters are the same
-                                   && firstMethod.parameters.Except(secondMethod.parameters, x => x.ParameterType).Count() == 0 
-                                   //!!! dirty hack, byte arrays compared by their string representations
-                                   // bodies ARE NOT the same
-                                   && !firstMethod.bytes.Equals(secondMethod.bytes)  
-                                   
-                                  select new { firstMethod = firstMethod, secondMethod = secondMethod };
+                                  && firstMethod.parameters.Except(secondMethod.parameters, x => x.ParameterType).Count() == 0
+                                     //!!! dirty hack, byte arrays compared by their string representations
+                                     // bodies ARE NOT the same
+                                  && !firstMethod.bytes.Equals(secondMethod.bytes)
+
+                                 select new { firstMethod = firstMethod, secondMethod = secondMethod };
 
             // just collection results
             var res = new List<DiffRecord>();
@@ -133,22 +153,22 @@ namespace DiffLib
                             first.type.Name + "." +
                             first.method.Name + "(" + string.Join(",", paramNames) + ")";
 
-                res.Add( new DiffRecord() 
-                { 
-                    MethodName = methodName, 
-                    FirstBytes = diff.firstMethod.bytes, 
-                    SecondBytes = diff.secondMethod.bytes , 
+                res.Add(new DiffRecord()
+                {
+                    MethodName = methodName,
+                    FirstBytes = diff.firstMethod.bytes,
+                    SecondBytes = diff.secondMethod.bytes,
                     Asm1 = diff.firstMethod.type.AssemblyQualifiedName,
                     Asm1File = diff.firstMethod.type.Assembly.CodeBase,
                     Asm2 = diff.secondMethod.type.AssemblyQualifiedName,
                     Asm2File = diff.secondMethod.type.Assembly.CodeBase,
                 });
-                
+
             }
             return res;
         }
 
-        
+
         /// <summary>
         /// makes assembly comparison all to all for two folders
         /// </summary>
@@ -163,7 +183,7 @@ namespace DiffLib
             return diffs;
         }
 
-        
+
         /// <summary>
         /// just loads assemblies from specified path
         /// </summary>
@@ -177,7 +197,7 @@ namespace DiffLib
             foreach (var file in files)
             {
                 var asm = Assembly.LoadFile(file.FullName);
-                if(asm != null)
+                if (asm != null)
                     yield return asm;
             }
         }
@@ -197,7 +217,7 @@ namespace DiffLib
                             where method.HasBody
                             let instructions = method.Body.Instructions
 
-                            let code = string.Join(",", instructions)
+                            let code = method.SourceCode()
                             let bytes = code
                             select new { type, method, parameters, returnType, bytes };
 
@@ -211,7 +231,7 @@ namespace DiffLib
                              where method.HasBody
                              let instructions = method.Body.Instructions
 
-                             let code = string.Join(",", instructions)
+                             let code = method.SourceCode()
                              let bytes = code
                              select new { type, method, parameters, returnType, bytes };
 
