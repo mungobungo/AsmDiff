@@ -1,1 +1,42 @@
-For playing with the tool go under console to folder examples and run "AsmDiff first second"
+1. Intro
+
+Library for calculating diffs between .Net assemblies in different folders.
+
+
+2. Example 
+
+For example, you have assembly called CoolLibrary.dll
+Actually, you have two copies of it. Located in folders "first" and "second"
+So you launch asmdiff in console and can see the difference.
+
+$ asmdiff first second
+CoolLibrary.dll
+CoolLibrary, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
+        Int32 Test.Sample(x:String)
+        IL_0000: nop,IL_0001: ldc.i4.s 66,IL_0003: stloc.0,IL_0004: br.s IL_0006
+,IL_0006: ldloc.0,IL_0007: ret
+
+CoolLibrary.dll
+CoolLibrary, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null
+        Int32 Test.Sample(x:String)
+        IL_0000: nop,IL_0001: ldc.i4.s 33,IL_0003: stloc.0,IL_0004: br.s IL_0006
+,IL_0006: ldloc.0,IL_0007: ret
+
+
+It's easy to see that  int Test.Sample(sting x) method has changed.
+
+3. Is there compiled version?
+Yeah, you can find it in "examples" folder.
+go there and run "AsmDiff first second"
+
+--------------------------------------------------------
+
+License:
+http://creativecommons.org/licenses/by/3.0/
+You are free:
+
+to Share — to copy, distribute and transmit the work
+to Remix — to adapt the work
+to make commercial use of the work
+
+Just mention this link to this repo (https://github.com/mungobungo/AsmDiff) somewhere.
