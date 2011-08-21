@@ -97,115 +97,70 @@ namespace DiffLib
 
     public class Engine
     {
-        #region  System.Reflection.Assembly handling
-        /// <summary>
-        /// Compares two assemblies by their method bytecodes. If there's change in method,  it well be part of result
-        /// </summary>
-        /// <returns>list of differences of methods</returns>
-        public static IEnumerable<DiffRecord> GetAssemblyDiff(Assembly firstAssembly, Assembly secondAssemlby)
-        {
-            var bindingFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.FlattenHierarchy | BindingFlags.Default | BindingFlags.DeclaredOnly | BindingFlags.CreateInstance | BindingFlags.Instance;
-            var firstData = from type in firstAssembly.GetTypes()
-                            from method in type.GetMethods(bindingFlags)
-                            let parameters = method.GetParameters()
-                            let returnType = method.ReturnType
-                            let body = method.GetMethodBody()
-                            // for some system methods body can be null, so we should check it
-                            where body != null
-                            let bytes = BitConverter.ToString(body.GetILAsByteArray())
-                            select new { type, method, parameters, returnType, bytes };
+     
 
-            var secondData = from type in secondAssemlby.GetTypes()
-                             from method in type.GetMethods(bindingFlags)
-                             let parameters = method.GetParameters()
-                             let returnType = method.ReturnType
-                             let body = method.GetMethodBody()
-                             // for some system methods body can be null, so we should check it
-                             where body != null
-                             let bytes = BitConverter.ToString(body.GetILAsByteArray())
-                             select new { type, method, parameters, returnType, bytes };
+        # region Cecil Assemlby handling
+
+        public static AssemblyDiffRecord CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
+        {
+            var firstData = GetMethods(firstAssembly);
+
+            var secondData = GetMethods(secondAssembly);
 
             var changedMethods = from firstMethod in firstData
                                  from secondMethod in secondData
                                  where
                                      // type names are the same
-                                 firstMethod.type.FullName.Equals(secondMethod.type.FullName)
+                                 firstMethod.Type.FullName.Equals(secondMethod.Type.FullName)
                                      // method names are the same
-                                  && firstMethod.method.Name == secondMethod.method.Name
+                                  && firstMethod.Method.Name == secondMethod.Method.Name
                                      // return typse are the same
-                                  && firstMethod.returnType == secondMethod.returnType
+                                  && firstMethod.ReturnType.FullName == secondMethod.ReturnType.FullName
                                      // parameters are the same
-                                  && firstMethod.parameters.Except(secondMethod.parameters, x => x.ParameterType).Count() == 0
+                                  && firstMethod.Parameters.Except(secondMethod.Parameters, x => x.ParameterType.FullName).Count() == 0
                                      //!!! dirty hack, byte arrays compared by their string representations
                                      // bodies ARE NOT the same
-                                  && !firstMethod.bytes.Equals(secondMethod.bytes)
+                                 && !firstMethod.ByteCode.Equals(secondMethod.ByteCode)
 
                                  select new { firstMethod = firstMethod, secondMethod = secondMethod };
-
             // just collection results
-            var res = new List<DiffRecord>();
+            var methodDiffs = new List<MethodDiffRecord>();
             foreach (var diff in changedMethods)
             {
                 var first = diff.firstMethod;
-                var paramNames = from parameter in first.parameters select parameter.Name + ":" + parameter.ParameterType.Name;
+                //var paramNames = from parameter in first.parameters select parameter.Name + ":" + parameter.ParameterType.Name;
 
-                var methodName = first.method.ReturnType.Name + " " +
-                            first.type.Name + "." +
-                            first.method.Name + "(" + string.Join(",", paramNames) + ")";
+                //var methodName = first.method.ReturnType.Name + " " +
+                //            first.type.Name + "." +
+                //            first.method.Name + "(" + string.Join(",", paramNames) + ")";
 
-                res.Add(new DiffRecord()
+                methodDiffs.Add(new MethodDiffRecord()
                 {
-                    MethodName = methodName,
-                    FirstBytes = diff.firstMethod.bytes,
-                    SecondBytes = diff.secondMethod.bytes,
-                    Asm1 = diff.firstMethod.type.AssemblyQualifiedName,
-                    Asm1File = diff.firstMethod.type.Assembly.CodeBase,
-                    Asm2 = diff.secondMethod.type.AssemblyQualifiedName,
-                    Asm2File = diff.secondMethod.type.Assembly.CodeBase,
+                    MethodName = diff.firstMethod.Method.FullName,
+                    FirstBytes = diff.firstMethod.ByteCode,
+                    SecondBytes = diff.secondMethod.ByteCode,
+                  
                 });
 
             }
-            return res;
-        }
-
-
-        /// <summary>
-        /// makes assembly comparison all to all for two folders
-        /// </summary>
-        /// <returns>list of lists of differences</returns>
-        public static IEnumerable<IEnumerable<DiffRecord>> GetDirectoryDiff(string firstFolder, string secondFolder)
-        {
-            var firstAssembiles = LoadAssemblies(firstFolder);
-            var secondAssemblies = LoadAssemblies(secondFolder);
-            var diffs = from asm1 in firstAssembiles
-                        from asm2 in secondAssemblies
-                        select GetAssemblyDiff(asm1, asm2);
-            return diffs;
-        }
-
-
-        /// <summary>
-        /// just loads assemblies from specified path
-        /// </summary>
-        /// <param name="path"></param>
-        /// <returns></returns>
-        private static IEnumerable<Assembly> LoadAssemblies(string path)
-        {
-            var directory = new DirectoryInfo(path);
-            var files = directory.GetFiles("*.dll");
-
-            foreach (var file in files)
+            var res = new AssemblyDiffRecord()
             {
-                var asm = Assembly.LoadFile(file.FullName);
-                if (asm != null)
-                    yield return asm;
-            }
+                Asm1 = firstAssembly.Name.FullName,
+                Asm1File = firstAssembly.MainModule.Name,
+                Asm1Classes = firstAssembly.Modules.Sum(x=> x.GetTypes().Count()),
+                Asm1Methods = firstAssembly.Modules.Sum(x => x.GetTypes().Sum(y=> y.Methods.Count)),
+                Asm2 = secondAssembly.Name.FullName,
+                Asm2File = secondAssembly.MainModule.Name,
+                Asm2Classes = secondAssembly.Modules.Sum(x => x.GetTypes().Count()),
+                Asm2Methods = secondAssembly.Modules.Sum(x => x.GetTypes().Sum(y => y.Methods.Count)),
+                MethodDiffs = methodDiffs
+
+            };
+            return res;
+
         }
-        #endregion
 
-        # region Cecil Assemlby handling
-
-        public static IEnumerable<DiffRecord> CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
+        private static IEnumerable<MethodInfo> GetMethods(AssemblyDefinition firstAssembly)
         {
             var firstData = from module in firstAssembly.Modules
                             from type in module.GetTypes()
@@ -217,72 +172,18 @@ namespace DiffLib
                             where method.HasBody
                             let instructions = method.Body.Instructions
 
-                            let code = method.SourceCode()
-                            let bytes = code
-                            select new { type, method, parameters, returnType, bytes };
-
-            var secondData = from module in secondAssembly.Modules
-                             from type in module.GetTypes()
-                             from method in type.Methods
-                             let parameters = method.Parameters
-                             let returnType = method.ReturnType
-
-                             // for some system methods body can be null, so we should check it
-                             where method.HasBody
-                             let instructions = method.Body.Instructions
-
-                             let code = method.SourceCode()
-                             let bytes = code
-                             select new { type, method, parameters, returnType, bytes };
-
-            var changedMethods = from firstMethod in firstData
-                                 from secondMethod in secondData
-                                 where
-                                     // type names are the same
-                                 firstMethod.type.FullName.Equals(secondMethod.type.FullName)
-                                     // method names are the same
-                                  && firstMethod.method.Name == secondMethod.method.Name
-                                     // return typse are the same
-                                  && firstMethod.returnType.FullName == secondMethod.returnType.FullName
-                                     // parameters are the same
-                                  && firstMethod.parameters.Except(secondMethod.parameters, x => x.ParameterType.FullName).Count() == 0
-                                     //!!! dirty hack, byte arrays compared by their string representations
-                                     // bodies ARE NOT the same
-                                 && !firstMethod.bytes.Equals(secondMethod.bytes)
-
-                                 select new { firstMethod = firstMethod, secondMethod = secondMethod };
-            // just collection results
-            var res = new List<DiffRecord>();
-            foreach (var diff in changedMethods)
-            {
-                var first = diff.firstMethod;
-                var paramNames = from parameter in first.parameters select parameter.Name + ":" + parameter.ParameterType.Name;
-
-                var methodName = first.method.ReturnType.Name + " " +
-                            first.type.Name + "." +
-                            first.method.Name + "(" + string.Join(",", paramNames) + ")";
-
-                res.Add(new DiffRecord()
-                {
-                    MethodName = methodName,
-                    FirstBytes = diff.firstMethod.bytes,
-                    SecondBytes = diff.secondMethod.bytes,
-                    Asm1 = firstAssembly.Name.FullName,
-                    Asm1File = firstAssembly.MainModule.Name,
-                    Asm2 = firstAssembly.Name.FullName,
-                    Asm2File = firstAssembly.MainModule.Name,
-                });
-
-            }
-            return res;
-
+                            //let code = method.SourceCode()
+                            let bytes = string.Join(";", method.Body.Instructions)
+                            select new MethodInfo() { Type = type, Method = method, Parameters = parameters, ReturnType = returnType, ByteCode = bytes };
+            return firstData;
         }
-        public static IEnumerable<IEnumerable<DiffRecord>> CecilGetDirectoryDiff(string firstFolder, string secondFolder)
+        public static IEnumerable<AssemblyDiffRecord> CecilGetDirectoryDiff(string firstFolder, string secondFolder)
         {
             var firstAssembiles = CecilLoadAssemblies(firstFolder);
             var secondAssemblies = CecilLoadAssemblies(secondFolder);
             var diffs = from asm1 in firstAssembiles
                         from asm2 in secondAssemblies
+                        where asm1.Name.Name == asm2.Name.Name
                         select CecilAssebmlyDiff(asm1, asm2);
             return diffs;
         }
@@ -298,7 +199,20 @@ namespace DiffLib
 
             foreach (var file in files)
             {
-                var asm = AssemblyDefinition.ReadAssembly(file.FullName);
+                AssemblyDefinition asm = null;
+                try
+                {
+                    asm =  AssemblyDefinition.ReadAssembly(file.FullName);
+                    
+                }
+                catch (ArgumentException)
+                {
+
+                }
+                catch (BadImageFormatException)
+                {
+                    
+                }
                 if (asm != null)
                     yield return asm;
             }

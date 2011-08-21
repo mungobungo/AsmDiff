@@ -55,8 +55,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DiffRecord.cs" />
+    <Compile Include="AssemblyDiffRecord.cs" />
+    <Compile Include="MethodDiffRecord.cs" />
     <Compile Include="Engine.cs" />
+    <Compile Include="MethodInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
