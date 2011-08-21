@@ -103,46 +103,70 @@ namespace DiffLib
 
         public static AssemblyDiffRecord CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
         {
-            var firstData = GetMethods(firstAssembly);
+            var firstMethods = GetMethods(firstAssembly);
+            Dictionary<string, MethodInfo> firstHash = new Dictionary<string, MethodInfo>();
 
-            var secondData = GetMethods(secondAssembly);
-
-            var changedMethods = from firstMethod in firstData
-                                 from secondMethod in secondData
-                                 where
-                                     // type names are the same
-                                 firstMethod.Type.FullName.Equals(secondMethod.Type.FullName)
-                                     // method names are the same
-                                  && firstMethod.Method.Name == secondMethod.Method.Name
-                                     // return typse are the same
-                                  && firstMethod.ReturnType.FullName == secondMethod.ReturnType.FullName
-                                     // parameters are the same
-                                  && firstMethod.Parameters.Except(secondMethod.Parameters, x => x.ParameterType.FullName).Count() == 0
-                                     //!!! dirty hack, byte arrays compared by their string representations
-                                     // bodies ARE NOT the same
-                                 && !firstMethod.ByteCode.Equals(secondMethod.ByteCode)
-
-                                 select new { firstMethod = firstMethod, secondMethod = secondMethod };
-            // just collection results
-            var methodDiffs = new List<MethodDiffRecord>();
-            foreach (var diff in changedMethods)
+            foreach (var method in firstMethods)
             {
-                var first = diff.firstMethod;
-                //var paramNames = from parameter in first.parameters select parameter.Name + ":" + parameter.ParameterType.Name;
-
-                //var methodName = first.method.ReturnType.Name + " " +
-                //            first.type.Name + "." +
-                //            first.method.Name + "(" + string.Join(",", paramNames) + ")";
-
-                methodDiffs.Add(new MethodDiffRecord()
+                if (!firstHash.ContainsKey(method.Method.FullName))
                 {
-                    MethodName = diff.firstMethod.Method.FullName,
-                    FirstBytes = diff.firstMethod.ByteCode,
-                    SecondBytes = diff.secondMethod.ByteCode,
-                  
-                });
-
+                    firstHash.Add(method.Method.FullName, method);
+                }
             }
+            var secondMethods = GetMethods(secondAssembly);
+
+            Dictionary<string, MethodInfo> secondHash = new Dictionary<string, MethodInfo>();
+            foreach (var method in secondMethods)
+            {
+                if (!secondHash.ContainsKey(method.Method.FullName))
+                {
+                    secondHash.Add(method.Method.FullName, method);
+                }
+            }
+            
+            var delta = from key in firstHash.Keys
+                        where secondHash.ContainsKey(key)
+                        let firstMethod = firstHash[key]
+                        let secondMethod = secondHash[key]
+                        select  new MethodDiffRecord(){MethodName = key, FirstBytes = firstMethod.ByteCode, SecondBytes = secondMethod.ByteCode};
+            
+
+            //var changedMethods = from firstMethod in firstMethods
+            //                     from secondMethod in secondMethods
+            //                     where
+            //                         // type names are the same
+            //                     firstMethod.Type.FullName.Equals(secondMethod.Type.FullName)
+            //                         // method names are the same
+            //                      && firstMethod.Method.Name == secondMethod.Method.Name
+            //                         // return typse are the same
+            //                      && firstMethod.ReturnType.FullName == secondMethod.ReturnType.FullName
+            //                         // parameters are the same
+            //                      && firstMethod.Parameters.Except(secondMethod.Parameters, x => x.ParameterType.FullName).Count() == 0
+            //                         //!!! dirty hack, byte arrays compared by their string representations
+            //                         // bodies ARE NOT the same
+            //                     && !firstMethod.ByteCode.Equals(secondMethod.ByteCode)
+
+            //                     select new { firstMethod = firstMethod, secondMethod = secondMethod };
+            // just collection results
+            //var methodDiffs = new List<MethodDiffRecord>();
+            //foreach (var diff in delta)
+            //{
+            //    var first = diff.firstMethod;
+            //    //var paramNames = from parameter in first.parameters select parameter.Name + ":" + parameter.ParameterType.Name;
+
+            //    //var methodName = first.method.ReturnType.Name + " " +
+            //    //            first.type.Name + "." +
+            //    //            first.method.Name + "(" + string.Join(",", paramNames) + ")";
+
+            //    methodDiffs.Add(new MethodDiffRecord()
+            //    {
+            //        MethodName = diff.firstMethod.Method.FullName,
+            //        FirstBytes = diff.firstMethod.ByteCode,
+            //        SecondBytes = diff.secondMethod.ByteCode,
+                  
+            //    });
+
+            //}
             var res = new AssemblyDiffRecord()
             {
                 Asm1 = firstAssembly.Name.FullName,
@@ -153,7 +177,7 @@ namespace DiffLib
                 Asm2File = secondAssembly.MainModule.Name,
                 Asm2Classes = secondAssembly.Modules.Sum(x => x.GetTypes().Count()),
                 Asm2Methods = secondAssembly.Modules.Sum(x => x.GetTypes().Sum(y => y.Methods.Count)),
-                MethodDiffs = methodDiffs
+                MethodDiffs = delta
 
             };
             return res;
@@ -181,6 +205,7 @@ namespace DiffLib
         {
             var firstAssembiles = CecilLoadAssemblies(firstFolder);
             var secondAssemblies = CecilLoadAssemblies(secondFolder);
+            
             var diffs = from asm1 in firstAssembiles
                         from asm2 in secondAssemblies
                         where asm1.Name.Name == asm2.Name.Name

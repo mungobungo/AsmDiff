@@ -14,10 +14,6 @@ namespace DiffLib
         public Collection<ParameterDefinition> Parameters { get; set; }
         public TypeReference ReturnType { get; set; }
         public string ByteCode { get; set; }
-        public override int GetHashCode()
-        {
-            return Type.GetHashCode() + Method.GetHashCode() + Parameters.GetHashCode() + ReturnType.GetHashCode();
-        }
 
     }
 }
