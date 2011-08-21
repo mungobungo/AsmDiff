@@ -48,21 +48,22 @@ namespace AsmDiff
                     Console.WriteLine("Classes: {0}, Methods : {1}", diff.Asm2Classes, diff.Asm2Methods);
                     Console.WriteLine("Different methods : {0}\n\n", diff.MethodDiffs.Count());
                 }
-#if DEBUG
+
 
                 foreach (var d in diff.MethodDiffs)
                 {
 
                     Console.WriteLine(d.MethodName);
-                    Console.WriteLine("\n\t" + d.FirstBytes);
+#if DEBUG
+                    //Console.WriteLine("\n\t" + d.FirstBytes);
 
 
-                    Console.WriteLine("\n\t" + d.SecondBytes);
+                    //Console.WriteLine("\n\t" + d.SecondBytes);
 
-                    Console.WriteLine("\n");
-
-                }
+                    //Console.WriteLine("\n");
 #endif
+                }
+
             }
            
             Console.WriteLine("Completed. Press any key...");
