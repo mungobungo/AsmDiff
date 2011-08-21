@@ -6,6 +6,7 @@ using System.Reflection;
 using System.IO;
 using Mono.Cecil;
 using Cecil.Decompiler.Languages;
+using System.Diagnostics;
 
 
 namespace DiffLib
@@ -75,7 +76,7 @@ namespace DiffLib
         {
             return first.Except(second, new KeyEqualityComparer<T>(keyExtractor));
         }
-        
+
         /// <summary>
         /// taken from
         /// http://naveensrinivasan.com/2010/06/08/using-mono-cecil-decompiler-within-windbg-to-decompile/
@@ -97,39 +98,17 @@ namespace DiffLib
 
     public class Engine
     {
-     
+
 
         # region Cecil Assemlby handling
 
         public static AssemblyDiffRecord CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
         {
-            var firstMethods = GetMethods(firstAssembly);
-            Dictionary<string, MethodInfo> firstHash = new Dictionary<string, MethodInfo>();
+            Dictionary<string, MethodInfo> firstHash = ConvertToMethodDictionary(firstAssembly);
+            Dictionary<string, MethodInfo> secondHash = ConvertToMethodDictionary(secondAssembly);
 
-            foreach (var method in firstMethods)
-            {
-                if (!firstHash.ContainsKey(method.Method.FullName))
-                {
-                    firstHash.Add(method.Method.FullName, method);
-                }
-            }
-            var secondMethods = GetMethods(secondAssembly);
+            var delta = CalculateMethodsDiff(firstHash, secondHash);
 
-            Dictionary<string, MethodInfo> secondHash = new Dictionary<string, MethodInfo>();
-            foreach (var method in secondMethods)
-            {
-                if (!secondHash.ContainsKey(method.Method.FullName))
-                {
-                    secondHash.Add(method.Method.FullName, method);
-                }
-            }
-            
-            var delta = from key in firstHash.Keys
-                        where secondHash.ContainsKey(key)
-                        let firstMethod = firstHash[key]
-                        let secondMethod = secondHash[key]
-                        select  new MethodDiffRecord(){MethodName = key, FirstBytes = firstMethod.ByteCode, SecondBytes = secondMethod.ByteCode};
-            
 
             //var changedMethods = from firstMethod in firstMethods
             //                     from secondMethod in secondMethods
@@ -163,7 +142,7 @@ namespace DiffLib
             //        MethodName = diff.firstMethod.Method.FullName,
             //        FirstBytes = diff.firstMethod.ByteCode,
             //        SecondBytes = diff.secondMethod.ByteCode,
-                  
+
             //    });
 
             //}
@@ -184,33 +163,91 @@ namespace DiffLib
 
         }
 
+        private static Dictionary<string, MethodInfo> ConvertToMethodDictionary(AssemblyDefinition secondAssembly)
+        {
+            var secondMethods = GetMethods(secondAssembly);
+
+            Dictionary<string, MethodInfo> secondHash = new Dictionary<string, MethodInfo>();
+            foreach (var method in secondMethods)
+            {
+                // if (!secondHash.ContainsKey(method.Method.FullName))
+                //  {
+                try
+                {
+                    secondHash.Add(method.Method.FullName, method);
+                }
+                catch { }
+                //  }
+            }
+            return secondHash;
+        }
+
+        private static IEnumerable<MethodDiffRecord> CalculateMethodsDiff(Dictionary<string, MethodInfo> firstHash, Dictionary<string, MethodInfo> secondHash)
+        {
+            var res = new List<MethodDiffRecord>();
+            foreach (var key in firstHash.Keys)
+            {
+                try
+                {
+
+                    var secondMethod = secondHash[key];
+                    var firstMethod = firstHash[key];
+                    if(!firstMethod.ByteCode.Equals(secondMethod.ByteCode))
+                        res.Add(new MethodDiffRecord() { MethodName = key, FirstBytes = firstMethod.ByteCode, SecondBytes = secondMethod.ByteCode });
+
+                }
+                catch { }
+            }
+            return res;
+        }
+
         private static IEnumerable<MethodInfo> GetMethods(AssemblyDefinition firstAssembly)
         {
-            var firstData = from module in firstAssembly.Modules
-                            from type in module.GetTypes()
-                            from method in type.Methods
-                            let parameters = method.Parameters
-                            let returnType = method.ReturnType
+            var result = new List<MethodInfo>();
+            var modules = firstAssembly.Modules;
 
-                            // for some system methods body can be null, so we should check it
-                            where method.HasBody
-                            let instructions = method.Body.Instructions
+            foreach (var module in modules)
+            {
+
+                foreach (var type in module.GetTypes())
+                {
+
+                    foreach (var method in type.Methods)
+                    {
+                        var parameters = method.Parameters;
+                        var returnType = method.ReturnType;
+
+                        // for some system methods body can be null, so we should check it
+                        if (method.HasBody)
+                        {
+                            var instructions = method.Body.Instructions;
 
                             //let code = method.SourceCode()
-                            let bytes = string.Join(";", method.Body.Instructions)
-                            select new MethodInfo() { Type = type, Method = method, Parameters = parameters, ReturnType = returnType, ByteCode = bytes };
-            return firstData;
+                            var bytes = string.Join(",", method.Body.Instructions);
+                            result.Add(new MethodInfo() { Type = type, Method = method, Parameters = parameters, ReturnType = returnType, ByteCode = bytes });
+                        }
+                    }
+
+                }
+            }
+            return result;
         }
         public static IEnumerable<AssemblyDiffRecord> CecilGetDirectoryDiff(string firstFolder, string secondFolder)
         {
             var firstAssembiles = CecilLoadAssemblies(firstFolder);
             var secondAssemblies = CecilLoadAssemblies(secondFolder);
-            
-            var diffs = from asm1 in firstAssembiles
-                        from asm2 in secondAssemblies
-                        where asm1.Name.Name == asm2.Name.Name
-                        select CecilAssebmlyDiff(asm1, asm2);
-            return diffs;
+
+
+            var res = new List<AssemblyDiffRecord>();
+            foreach (var asm1 in firstAssembiles)
+                foreach (var asm2 in secondAssemblies)
+                    if (asm1.Name.Name == asm2.Name.Name)
+                    {
+                        var diff = CecilAssebmlyDiff(asm1, asm2);
+                        yield return diff;
+                        //res.Add(diff);
+                    }
+            //return res;
         }
         /// <summary>
         /// just loads assemblies from specified path
@@ -222,25 +259,30 @@ namespace DiffLib
             var directory = new DirectoryInfo(path);
             var files = directory.GetFiles("*.dll");
 
+            var res = new List<AssemblyDefinition>();
             foreach (var file in files)
             {
                 AssemblyDefinition asm = null;
+              
+                
                 try
                 {
-                    asm =  AssemblyDefinition.ReadAssembly(file.FullName);
+                    asm = AssemblyDefinition.ReadAssembly(file.FullName);
                     
+
                 }
-                catch (ArgumentException)
+                catch 
                 {
 
                 }
-                catch (BadImageFormatException)
+                if (asm != null)
                 {
                     
+                    //yield return asm;
+                    res.Add(asm);
                 }
-                if (asm != null)
-                    yield return asm;
             }
+            return res;
         }
 
         #endregion

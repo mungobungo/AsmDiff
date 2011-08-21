@@ -34,35 +34,41 @@ namespace AsmDiff
             var folderDiff = Engine.CecilGetDirectoryDiff(folder1, folder2);
             
             //var diff = Engine.GetAssemblyDiff(Assembly.GetAssembly(typeof(Test)), Assembly.GetAssembly(typeof(Engine)));
+            
             foreach (var diff in folderDiff)
             {
-                Console.WriteLine(diff.Asm1File);
-                Console.WriteLine(diff.Asm1);
-                Console.WriteLine("Classes: {0}, Methods : {1}", diff.Asm1Classes, diff.Asm1Methods);
-                
-                //Console.WriteLine(diff.Asm2File);
-                Console.WriteLine(diff.Asm2);
-                Console.WriteLine("Classes: {0}, Methods : {1}", diff.Asm2Classes, diff.Asm2Methods);
-                Console.WriteLine("Different methods : {0}\n\n", diff.MethodDiffs.Count());
-                //foreach (var d in diff.MethodDiffs)
-                //{
+                if (diff.MethodDiffs.Count() > 0)
+                {
+                    Console.WriteLine(diff.Asm1File);
+                    Console.WriteLine(diff.Asm1);
+                    Console.WriteLine("Classes: {0}, Methods : {1}", diff.Asm1Classes, diff.Asm1Methods);
 
-                //    Console.WriteLine(d.MethodName);
-                //   // Console.WriteLine("\n\t" + d.FirstBytes);
+                    //Console.WriteLine(diff.Asm2File);
+                    Console.WriteLine(diff.Asm2);
+                    Console.WriteLine("Classes: {0}, Methods : {1}", diff.Asm2Classes, diff.Asm2Methods);
+                    Console.WriteLine("Different methods : {0}\n\n", diff.MethodDiffs.Count());
+                }
+#if DEBUG
 
-                    
-                //  //  Console.WriteLine("\n\t" + d.SecondBytes);
+                foreach (var d in diff.MethodDiffs)
+                {
 
-                //    Console.WriteLine("\n");
+                    Console.WriteLine(d.MethodName);
+                    Console.WriteLine("\n\t" + d.FirstBytes);
 
-                //}
+
+                    Console.WriteLine("\n\t" + d.SecondBytes);
+
+                    Console.WriteLine("\n");
+
+                }
+#endif
             }
-            //if (folderDiff.Sum(x => x.MethodDiffs.Count()) == 0)
-            //    Console.WriteLine("No diffs found");
+           
             Console.WriteLine("Completed. Press any key...");
             sw.Stop();
             Console.WriteLine(sw.ElapsedMilliseconds);
-            Console.ReadLine();
+           // Console.ReadLine();
         }
         
     }
