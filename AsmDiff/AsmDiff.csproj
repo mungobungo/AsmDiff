@@ -47,12 +47,19 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CoolLibrary\CoolLibrary.csproj">
+      <Project>{0A8B95C7-C5B2-4B6E-92BB-32EADFD680E9}</Project>
+      <Name>CoolLibrary</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DiffLib\DiffLib.csproj">
       <Project>{F93C42DF-4AD8-463F-B01F-A97D6F57301F}</Project>
       <Name>DiffLib</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>copy /y $(TargetDir)\CoolLibrary.dll $(TargetDir)\CoolLibrary2.dll</PostBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

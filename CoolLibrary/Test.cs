@@ -22,6 +22,30 @@ namespace CoolLibrary
         {
             return 332323*2;
         }
+        int Sample<T>(T x)
+        {
+            return 0;
+        }
+
+        int Sample<T, S>(int x)
+        {
+            return 0;
+        }
+
+        int Sample<T, S>(int x, T y)
+        {
+            return 0;
+        }
+
+        int Sample<T, S>(int x, S y)
+        {
+            return 0;
+        }
+        int Sample<T>(int x)
+        {
+            return 0;
+        }
+        
 
 
         string Sample(string x, int y)

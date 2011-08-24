@@ -102,6 +102,14 @@ namespace DiffLib
 
         # region Cecil Assemlby handling
 
+        public static AssemblyDiffRecord AssemblyDiff(string firstPath, string secondPath)
+        {
+            var f1 = new FileInfo(firstPath);
+            var f2 = new FileInfo(secondPath);
+            var asm1 = AssemblyDefinition.ReadAssembly(f1.FullName);
+            var asm2 = AssemblyDefinition.ReadAssembly(f2.FullName);
+            return CecilAssebmlyDiff(asm1, asm2);
+        }
         public static AssemblyDiffRecord CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
         {
             Dictionary<string, MethodInfo> firstHash = ConvertToMethodDictionary(firstAssembly);
@@ -176,7 +184,9 @@ namespace DiffLib
                 {
                     secondHash.Add(method.Method.FullName, method);
                 }
-                catch { }
+                catch(Exception ex) {
+                    ex.ToString();
+                }
                 //  }
             }
             return secondHash;
@@ -254,7 +264,7 @@ namespace DiffLib
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        private static IEnumerable<AssemblyDefinition> CecilLoadAssemblies(string path)
+        public static IEnumerable<AssemblyDefinition> CecilLoadAssemblies(string path)
         {
             var directory = new DirectoryInfo(path);
             var files = directory.GetFiles("*.dll");
