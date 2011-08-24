@@ -4,8 +4,7 @@ using System.Linq;
 using System.Text;
 using Mono.Cecil;
 using Mono.Collections.Generic;
-
-namespace DiffLib
+namespace AsmDiff.Lib
 {
     class MethodInfo
     {

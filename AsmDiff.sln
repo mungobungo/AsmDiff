@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsmDiff", "AsmDiff\AsmDiff.csproj", "{C3932BF7-CE72-4349-A7C4-AA30FE1D5FF4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiffLib", "DiffLib\DiffLib.csproj", "{F93C42DF-4AD8-463F-B01F-A97D6F57301F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AsmDiff.Lib", "AsmDiff.Lib\AsmDiff.Lib.csproj", "{F93C42DF-4AD8-463F-B01F-A97D6F57301F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoolLibrary", "CoolLibrary\CoolLibrary.csproj", "{0A8B95C7-C5B2-4B6E-92BB-32EADFD680E9}"
 EndProject

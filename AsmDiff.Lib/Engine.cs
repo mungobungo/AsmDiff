@@ -9,7 +9,7 @@ using Cecil.Decompiler.Languages;
 using System.Diagnostics;
 
 
-namespace DiffLib
+namespace AsmDiff.Lib
 {
 
     /// <summary>

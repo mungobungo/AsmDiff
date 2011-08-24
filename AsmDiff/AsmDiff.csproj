@@ -51,9 +51,9 @@
       <Project>{0A8B95C7-C5B2-4B6E-92BB-32EADFD680E9}</Project>
       <Name>CoolLibrary</Name>
     </ProjectReference>
-    <ProjectReference Include="..\DiffLib\DiffLib.csproj">
+    <ProjectReference Include="..\AsmDiff.Lib\AsmDiff.Lib.csproj">
       <Project>{F93C42DF-4AD8-463F-B01F-A97D6F57301F}</Project>
-      <Name>DiffLib</Name>
+      <Name>AsmDiff.Lib</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
