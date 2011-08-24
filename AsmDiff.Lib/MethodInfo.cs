@@ -6,8 +6,9 @@ using Mono.Cecil;
 using Mono.Collections.Generic;
 namespace AsmDiff.Lib
 {
-    class MethodInfo
+    public class MethodInfo
     {
+        public string FullName { get; set; }
         public TypeDefinition Type { get; set; }
         public MethodDefinition Method { get; set; }
         public Collection<ParameterDefinition> Parameters { get; set; }

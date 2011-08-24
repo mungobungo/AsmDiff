@@ -31,7 +31,8 @@ namespace AsmDiff
 #endif
             Stopwatch sw = new Stopwatch();
             sw.Start();
-            var folderDiff = Engine.CecilGetDirectoryDiff(folder1, folder2);
+            var engine = new Engine();
+            var folderDiff = engine.CecilGetDirectoryDiff(folder1, folder2);
             
             //var diff = Engine.GetAssemblyDiff(Assembly.GetAssembly(typeof(Test)), Assembly.GetAssembly(typeof(Engine)));
             

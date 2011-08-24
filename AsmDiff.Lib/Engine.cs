@@ -102,7 +102,7 @@ namespace AsmDiff.Lib
 
         # region Cecil Assemlby handling
 
-        public static AssemblyDiffRecord AssemblyDiff(string firstPath, string secondPath)
+        public  AssemblyDiffRecord AssemblyDiff(string firstPath, string secondPath)
         {
             var f1 = new FileInfo(firstPath);
             var f2 = new FileInfo(secondPath);
@@ -110,7 +110,7 @@ namespace AsmDiff.Lib
             var asm2 = AssemblyDefinition.ReadAssembly(f2.FullName);
             return CecilAssebmlyDiff(asm1, asm2);
         }
-        public static AssemblyDiffRecord CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
+        public  AssemblyDiffRecord CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
         {
             Dictionary<string, MethodInfo> firstHash = ConvertToMethodDictionary(firstAssembly);
             Dictionary<string, MethodInfo> secondHash = ConvertToMethodDictionary(secondAssembly);
@@ -171,7 +171,7 @@ namespace AsmDiff.Lib
 
         }
 
-        private static Dictionary<string, MethodInfo> ConvertToMethodDictionary(AssemblyDefinition secondAssembly)
+        public  Dictionary<string, MethodInfo> ConvertToMethodDictionary(AssemblyDefinition secondAssembly)
         {
             var secondMethods = GetMethods(secondAssembly);
 
@@ -192,7 +192,7 @@ namespace AsmDiff.Lib
             return secondHash;
         }
 
-        private static IEnumerable<MethodDiffRecord> CalculateMethodsDiff(Dictionary<string, MethodInfo> firstHash, Dictionary<string, MethodInfo> secondHash)
+        private  IEnumerable<MethodDiffRecord> CalculateMethodsDiff(Dictionary<string, MethodInfo> firstHash, Dictionary<string, MethodInfo> secondHash)
         {
             var res = new List<MethodDiffRecord>();
             foreach (var key in firstHash.Keys)
@@ -211,7 +211,7 @@ namespace AsmDiff.Lib
             return res;
         }
 
-        private static IEnumerable<MethodInfo> GetMethods(AssemblyDefinition firstAssembly)
+        public  IEnumerable<MethodInfo> GetMethods(AssemblyDefinition firstAssembly)
         {
             var result = new List<MethodInfo>();
             var modules = firstAssembly.Modules;
@@ -226,6 +226,18 @@ namespace AsmDiff.Lib
                     {
                         var parameters = method.Parameters;
                         var returnType = method.ReturnType;
+                        
+                        var sb = new StringBuilder();
+                        if (returnType.HasGenericParameters)
+                        {
+                            sb.Append(returnType.FullName);
+                            sb.Append(" ");
+                        }
+                        else
+                        {
+                            
+                        }
+                        
 
                         // for some system methods body can be null, so we should check it
                         if (method.HasBody)
@@ -242,7 +254,7 @@ namespace AsmDiff.Lib
             }
             return result;
         }
-        public static IEnumerable<AssemblyDiffRecord> CecilGetDirectoryDiff(string firstFolder, string secondFolder)
+        public  IEnumerable<AssemblyDiffRecord> CecilGetDirectoryDiff(string firstFolder, string secondFolder)
         {
             var firstAssembiles = CecilLoadAssemblies(firstFolder);
             var secondAssemblies = CecilLoadAssemblies(secondFolder);
@@ -264,7 +276,7 @@ namespace AsmDiff.Lib
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        public static IEnumerable<AssemblyDefinition> CecilLoadAssemblies(string path)
+        public  IEnumerable<AssemblyDefinition> CecilLoadAssemblies(string path)
         {
             var directory = new DirectoryInfo(path);
             var files = directory.GetFiles("*.dll");
