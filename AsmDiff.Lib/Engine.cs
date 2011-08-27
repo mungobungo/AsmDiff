@@ -7,6 +7,8 @@ using System.IO;
 using Mono.Cecil;
 using Cecil.Decompiler.Languages;
 using System.Diagnostics;
+using Mono.Collections.Generic;
+using Mono.Cecil.Cil;
 
 
 namespace AsmDiff.Lib
@@ -102,7 +104,7 @@ namespace AsmDiff.Lib
 
         # region Cecil Assemlby handling
 
-        public  AssemblyDiffRecord AssemblyDiff(string firstPath, string secondPath)
+        public AssemblyDiffRecord AssemblyDiff(string firstPath, string secondPath)
         {
             var f1 = new FileInfo(firstPath);
             var f2 = new FileInfo(secondPath);
@@ -110,60 +112,57 @@ namespace AsmDiff.Lib
             var asm2 = AssemblyDefinition.ReadAssembly(f2.FullName);
             return CecilAssebmlyDiff(asm1, asm2);
         }
-        public  AssemblyDiffRecord CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
+        public AssemblyDiffRecord CecilAssebmlyDiff(AssemblyDefinition firstAssembly, AssemblyDefinition secondAssembly)
         {
-            Dictionary<string, MethodInfo> firstHash = ConvertToMethodDictionary(firstAssembly);
-            Dictionary<string, MethodInfo> secondHash = ConvertToMethodDictionary(secondAssembly);
 
-            var delta = CalculateMethodsDiff(firstHash, secondHash);
+            var delta = new List<MethodDiffRecord>();
 
+            var firstTypes = new Dictionary<string, TypeDefinition>();
+            var secondTypes = new Dictionary<string, TypeDefinition>();
 
-            //var changedMethods = from firstMethod in firstMethods
-            //                     from secondMethod in secondMethods
-            //                     where
-            //                         // type names are the same
-            //                     firstMethod.Type.FullName.Equals(secondMethod.Type.FullName)
-            //                         // method names are the same
-            //                      && firstMethod.Method.Name == secondMethod.Method.Name
-            //                         // return typse are the same
-            //                      && firstMethod.ReturnType.FullName == secondMethod.ReturnType.FullName
-            //                         // parameters are the same
-            //                      && firstMethod.Parameters.Except(secondMethod.Parameters, x => x.ParameterType.FullName).Count() == 0
-            //                         //!!! dirty hack, byte arrays compared by their string representations
-            //                         // bodies ARE NOT the same
-            //                     && !firstMethod.ByteCode.Equals(secondMethod.ByteCode)
+            foreach (var module in firstAssembly.Modules)
+                foreach (var type in module.Types)
+                {
+                    try
+                    {
+                        firstTypes.Add(type.FullName, type);
+                    }
+                    catch { }
+                }
 
-            //                     select new { firstMethod = firstMethod, secondMethod = secondMethod };
-            // just collection results
-            //var methodDiffs = new List<MethodDiffRecord>();
-            //foreach (var diff in delta)
-            //{
-            //    var first = diff.firstMethod;
-            //    //var paramNames = from parameter in first.parameters select parameter.Name + ":" + parameter.ParameterType.Name;
+            foreach (var module in secondAssembly.Modules)
+                foreach (var type in module.Types)
+                {
+                    try
+                    {
+                        secondTypes.Add(type.FullName, type);
+                    }
+                    catch { }
+                }
 
-            //    //var methodName = first.method.ReturnType.Name + " " +
-            //    //            first.type.Name + "." +
-            //    //            first.method.Name + "(" + string.Join(",", paramNames) + ")";
-
-            //    methodDiffs.Add(new MethodDiffRecord()
-            //    {
-            //        MethodName = diff.firstMethod.Method.FullName,
-            //        FirstBytes = diff.firstMethod.ByteCode,
-            //        SecondBytes = diff.secondMethod.ByteCode,
-
-            //    });
-
-            //}
+            foreach (var t in firstAssembly.MainModule.Types)
+            {
+                try
+                {
+                    var second = secondTypes[t.FullName];
+                    Dictionary<string, MethodInfo> firstHash = GetMethods(t);
+                    Dictionary<string, MethodInfo> secondHash = GetMethods(second);
+                    var diff = CalculateMethodsDiff(firstHash, secondHash);
+                    delta.AddRange(diff);
+                }
+                catch { }
+            }
+         
             var res = new AssemblyDiffRecord()
             {
                 Asm1 = firstAssembly.Name.FullName,
                 Asm1File = firstAssembly.MainModule.Name,
-                Asm1Classes = firstAssembly.Modules.Sum(x=> x.GetTypes().Count()),
-                Asm1Methods = firstAssembly.Modules.Sum(x => x.GetTypes().Sum(y=> y.Methods.Count)),
+                Asm1Classes = firstTypes.Count,
+                Asm1Methods = firstTypes.Values.Sum(x => x.Methods.Count),
                 Asm2 = secondAssembly.Name.FullName,
                 Asm2File = secondAssembly.MainModule.Name,
-                Asm2Classes = secondAssembly.Modules.Sum(x => x.GetTypes().Count()),
-                Asm2Methods = secondAssembly.Modules.Sum(x => x.GetTypes().Sum(y => y.Methods.Count)),
+                Asm2Classes = secondTypes.Count,
+                Asm2Methods = secondTypes.Values.Sum(x => x.Methods.Count),
                 MethodDiffs = delta
 
             };
@@ -171,28 +170,7 @@ namespace AsmDiff.Lib
 
         }
 
-        public  Dictionary<string, MethodInfo> ConvertToMethodDictionary(AssemblyDefinition secondAssembly)
-        {
-            var secondMethods = GetMethods(secondAssembly);
-
-            Dictionary<string, MethodInfo> secondHash = new Dictionary<string, MethodInfo>();
-            foreach (var method in secondMethods)
-            {
-                // if (!secondHash.ContainsKey(method.Method.FullName))
-                //  {
-                try
-                {
-                    secondHash.Add(method.Method.FullName, method);
-                }
-                catch(Exception ex) {
-                    ex.ToString();
-                }
-                //  }
-            }
-            return secondHash;
-        }
-
-        private  IEnumerable<MethodDiffRecord> CalculateMethodsDiff(Dictionary<string, MethodInfo> firstHash, Dictionary<string, MethodInfo> secondHash)
+        private IEnumerable<MethodDiffRecord> CalculateMethodsDiff(Dictionary<string, MethodInfo> firstHash, Dictionary<string, MethodInfo> secondHash)
         {
             var res = new List<MethodDiffRecord>();
             foreach (var key in firstHash.Keys)
@@ -202,59 +180,55 @@ namespace AsmDiff.Lib
 
                     var secondMethod = secondHash[key];
                     var firstMethod = firstHash[key];
-                    if(!firstMethod.ByteCode.Equals(secondMethod.ByteCode))
-                        res.Add(new MethodDiffRecord() { MethodName = key, FirstBytes = firstMethod.ByteCode, SecondBytes = secondMethod.ByteCode });
 
+                    if (!firstMethod.ByteCode.Equals(secondMethod.ByteCode))
+                    {
+                       //TODO: Ass deciompilation firstMethod.Method.SourceCode();
+                        res.Add(new MethodDiffRecord() { MethodName = key, FirstBytes = firstMethod.ByteCode, SecondBytes = secondMethod.ByteCode });
+                    }
+                    
                 }
                 catch { }
             }
             return res;
         }
 
-        public  IEnumerable<MethodInfo> GetMethods(AssemblyDefinition firstAssembly)
+        public Dictionary<string, MethodInfo> GetMethods(TypeDefinition type)
         {
-            var result = new List<MethodInfo>();
-            var modules = firstAssembly.Modules;
-
-            foreach (var module in modules)
+            Dictionary<string, MethodInfo> dictionary = new Dictionary<string, MethodInfo>();
+            
+            foreach (var method in type.Methods)
             {
-
-                foreach (var type in module.GetTypes())
+                var sb = new StringBuilder();
+               
+                if (method.HasGenericParameters)
                 {
+                    sb.Append("<");
+                    sb.Append(string.Join(",", method.GenericParameters));
+                    sb.Append(">");
+                }
 
-                    foreach (var method in type.Methods)
+                // for some system methods body can be null, so we should check it
+                if (method.HasBody)
+                {
+                   
+                    var bytes = string.Join(",", method.Body.Instructions);
+
+                    var name = method.FullName;
+                    if (method.HasGenericParameters)
                     {
-                        var parameters = method.Parameters;
-                        var returnType = method.ReturnType;
-                        
-                        var sb = new StringBuilder();
-                        if (returnType.HasGenericParameters)
-                        {
-                            sb.Append(returnType.FullName);
-                            sb.Append(" ");
-                        }
-                        else
-                        {
-                            
-                        }
-                        
-
-                        // for some system methods body can be null, so we should check it
-                        if (method.HasBody)
-                        {
-                            var instructions = method.Body.Instructions;
-
-                            //let code = method.SourceCode()
-                            var bytes = string.Join(",", method.Body.Instructions);
-                            result.Add(new MethodInfo() { Type = type, Method = method, Parameters = parameters, ReturnType = returnType, ByteCode = bytes });
-                        }
+                        // adding generic parameters to string representation i.e Func() become Func<T1,T2>()
+                        var index = name.IndexOf("(");
+                        name = name.Insert(index, sb.ToString());
                     }
 
+                    var minfo = new MethodInfo() { FullName = name, Method = method, ByteCode = bytes};
+                    dictionary.Add(name, minfo);
                 }
             }
-            return result;
+            return dictionary;
         }
-        public  IEnumerable<AssemblyDiffRecord> CecilGetDirectoryDiff(string firstFolder, string secondFolder)
+        public IEnumerable<AssemblyDiffRecord> CecilGetDirectoryDiff(string firstFolder, string secondFolder)
         {
             var firstAssembiles = CecilLoadAssemblies(firstFolder);
             var secondAssemblies = CecilLoadAssemblies(secondFolder);
@@ -266,17 +240,19 @@ namespace AsmDiff.Lib
                     if (asm1.Name.Name == asm2.Name.Name)
                     {
                         var diff = CecilAssebmlyDiff(asm1, asm2);
-                        yield return diff;
+                        if(diff.MethodDiffs.Count() > 0)
+                            yield return diff;
                         //res.Add(diff);
                     }
-            //return res;
+
+            
         }
         /// <summary>
-        /// just loads assemblies from specified path
+        /// Loads assemblies from specified path
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        public  IEnumerable<AssemblyDefinition> CecilLoadAssemblies(string path)
+        public IEnumerable<AssemblyDefinition> CecilLoadAssemblies(string path)
         {
             var directory = new DirectoryInfo(path);
             var files = directory.GetFiles("*.dll");
@@ -285,21 +261,21 @@ namespace AsmDiff.Lib
             foreach (var file in files)
             {
                 AssemblyDefinition asm = null;
-              
-                
+
+
                 try
                 {
                     asm = AssemblyDefinition.ReadAssembly(file.FullName);
-                    
+
 
                 }
-                catch 
+                catch
                 {
 
                 }
                 if (asm != null)
                 {
-                    
+
                     //yield return asm;
                     res.Add(asm);
                 }

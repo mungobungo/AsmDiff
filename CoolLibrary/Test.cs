@@ -7,17 +7,10 @@ namespace CoolLibrary
 {
     public class Test
     {
-        
-        private class InnerTest
-        {
-            public int InnerVoid()
-            {
-                return 0;
-            }
-        }
+
         // public property
         public int PublicProp { get { return 0; } set { } }
-        
+
         // private void method with none parameters
         void Sample()
         {
@@ -27,13 +20,13 @@ namespace CoolLibrary
         // private int -> int method
         int Sample(int x)
         {
-            return 3*2;
+            return 3 * 2;
         }
 
         // public int -> string method
         public int Sample(string x)
         {
-            return 332323*2;
+            return 332323 * 2;
         }
         // protected string->string->string method
         protected string Sample(string x, string y)
@@ -69,17 +62,17 @@ namespace CoolLibrary
         {
             return 0;
         }
-        
+
 
         // two generic parameters, only first is not used
         int Sample<T, S>(int x, S y)
         {
             return 0;
         }
-        
+
 
         // three genrics, parameter uses generic type, return type int
-        int ThreeGenericsInt<T, S, Q>(Dictionary<T, Dictionary<S, Q>> dic) where T: IEnumerable<int>
+        int ThreeGenericsInt<T, S, Q>(Dictionary<T, Dictionary<S, Q>> dic) where T : IEnumerable<int>
         {
             return 0;
         }
@@ -89,18 +82,18 @@ namespace CoolLibrary
         {
             return dic;
         }
-        
+
         // one generic parameter that is not used
         int Sample<T>(int x)
         {
             return 0;
         }
-        
+
         // two non-generic parameters and non-generic return type
         string Sample(string x, int y)
         {
             return "4232dfsdfsdf323";
-        
+
         }
         // static method
         public static int StaticMethod(int x)

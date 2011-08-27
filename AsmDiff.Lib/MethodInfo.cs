@@ -9,11 +9,13 @@ namespace AsmDiff.Lib
     public class MethodInfo
     {
         public string FullName { get; set; }
-        public TypeDefinition Type { get; set; }
         public MethodDefinition Method { get; set; }
-        public Collection<ParameterDefinition> Parameters { get; set; }
-        public TypeReference ReturnType { get; set; }
         public string ByteCode { get; set; }
+        //public string SourceCode { get; set; }
+        public override string ToString()
+        {
+            return FullName;
+        }
 
     }
 }
